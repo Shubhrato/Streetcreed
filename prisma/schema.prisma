@@ -1,0 +1,173 @@
+// STREETCREED — production data model (PostgreSQL via Prisma).
+// The storefront currently reads realistic mock data through
+// src/lib/services/products.ts; these models mirror that contract 1:1 so the
+// service layer can be swapped to Prisma queries without touching the UI.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Gender {
+  women
+  men
+  unisex
+}
+
+enum Role {
+  CUSTOMER
+  ADMIN
+}
+
+enum OrderStatus {
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String // bcrypt/argon2 hash only — never plain text
+  role         Role     @default(CUSTOMER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  orders    Order[]
+  wishlist  WishlistItem[]
+  addresses Address[]
+  reviews   Review[]
+}
+
+model Address {
+  id         String  @id @default(cuid())
+  userId     String
+  user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  firstName  String
+  lastName   String
+  street     String
+  city       String
+  postalCode String
+  country    String
+  isDefault  Boolean @default(false)
+}
+
+model Collection {
+  id      String    @id @default(cuid())
+  slug    String    @unique
+  name    String
+  tagline String
+  image   String
+  gender  String    @default("all")
+  products Product[]
+}
+
+model Product {
+  id             String     @id @default(cuid())
+  slug           String     @unique
+  name           String
+  category       String
+  gender         Gender
+  price          Int // cents
+  compareAt      Int? // cents
+  rating         Float      @default(0)
+  reviewsCount   Int        @default(0)
+  sizes          String[]
+  images         String[]
+  badge          String?
+  stock          Int        @default(0)
+  description    String
+  details        String[]
+  fabric         String
+  featured       Boolean    @default(false)
+  collectionId   String?
+  collection     Collection? @relation(fields: [collectionId], references: [id])
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  colors       ProductColor[]
+  orderItems   OrderItem[]
+  wishlistBy   WishlistItem[]
+  reviews      Review[]
+
+  @@index([category])
+  @@index([gender])
+}
+
+model ProductColor {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name      String
+  hex       String
+}
+
+model WishlistItem {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId])
+}
+
+model Order {
+  id          String      @id @default(cuid())
+  userId      String?
+  user        User?       @relation(fields: [userId], references: [id])
+  email       String
+  status      OrderStatus @default(PROCESSING)
+  subtotal    Int // cents
+  discount    Int         @default(0)
+  shipping    Int         @default(0)
+  total       Int // cents
+  promoCode   String?
+  addressLine String
+  city        String
+  postalCode  String
+  country     String
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  items OrderItem[]
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id])
+  name      String
+  image     String
+  size      String
+  color     String
+  unitPrice Int // cents
+  qty       Int
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  rating    Int
+  body      String?
+  createdAt DateTime @default(now())
+}
+
+model NewsletterSubscriber {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+}

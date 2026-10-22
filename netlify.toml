@@ -1,0 +1,53 @@
+# Netlify configuration for STREETCREED Next.js deployment
+# This file configures the build and deployment settings for Netlify
+
+[build]
+  # Build command - includes Prisma generation which is required for auth API routes
+  command = "npx prisma generate && npm run build"
+  # Output directory for Next.js static export (if using) or .next for SSR
+  publish = ".next"
+
+[build.environment]
+  # Node version for build
+  NODE_VERSION = "20"
+  # Ensure Prisma generates the client during build
+  PRISMA_CLI_BINARY_TARGETS = "native"
+  # Default site URL (override in Netlify dashboard for custom domains)
+  NEXT_PUBLIC_SITE_URL = "https://streetcreed.netlify.app"
+
+# Next.js on Netlify uses the @netlify/next plugin
+# This handles SSR, API routes, and middleware automatically
+[[plugins]]
+  package = "@netlify/next"
+
+# Redirect rules for SPA-like behavior and API routes
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
+# Security headers (in addition to next.config.mjs)
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+
+# Cache static assets aggressively
+[[headers]]
+  for = "/_next/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/images/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Functions configuration for API routes
+[functions]
+  node_bundler = "esbuild"
+  included_files = ["prisma/**/*", ".prisma/client/**/*"]
+  external_node_modules = ["@prisma/client"]
